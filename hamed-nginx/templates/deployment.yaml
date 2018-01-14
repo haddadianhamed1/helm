@@ -1,0 +1,55 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "hamed-nginx.fullname" . }}
+  labels:
+    app: {{ template "hamed-nginx.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "hamed-nginx.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.internalPort }}
+          volumeMounts:
+          - name: {{ template "hamed-nginx.fullname" . }}-nginxconf
+            mountPath: /etc/nginx/conf.d
+          - name: {{ template "hamed-nginx.fullname" . }}-indexhtml
+            mountPath: /etc/index
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.internalPort }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.internalPort }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+    {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+    {{- end }}
+      volumes:
+        - name: {{ template "hamed-nginx.fullname" . }}-nginxconf
+          configMap:
+            name: {{ template "hamed-nginx.fullname" . }}
+            items:
+            - key: nginx.conf
+              path: default.conf
+        - name: {{ template "hamed-nginx.fullname" . }}-indexhtml
+          configMap:
+            name: {{ template "hamed-nginx.fullname" . }}
+            items:
+            - key: nginx.conf
+              path: nginx.conf
